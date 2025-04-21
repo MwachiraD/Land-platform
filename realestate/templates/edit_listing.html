@@ -1,0 +1,12 @@
+<!-- edit_listing.html -->
+{% extends "base_generic.html" %}
+
+{% block content %}
+    <h2>Edit Listing</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save Changes</button>
+    </form>
+    <a href="{% url 'seller_dashboard' %}">Back to Dashboard</a>
+{% endblock %}

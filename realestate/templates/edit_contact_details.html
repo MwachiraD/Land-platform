@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Contact Details</title>
+</head>
+<body>
+    <h1>Edit Your Contact Details</h1>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save Changes</button>
+    </form>
+    <a href="{% url 'seller_dashboard' %}">Back to Dashboard</a>
+</body>
+</html>

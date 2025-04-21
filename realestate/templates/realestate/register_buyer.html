@@ -1,0 +1,19 @@
+{% extends 'base_generic.html' %}
+
+{% block title %}Register as Buyer{% endblock %}
+
+{% block content %}
+  <h2>Register as Buyer</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Register</button>
+  </form>
+  {% if messages %}
+    <ul>
+      {% for message in messages %}
+        <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

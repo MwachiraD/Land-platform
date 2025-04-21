@@ -1,0 +1,16 @@
+<!-- respond_to_message.html -->
+{% extends 'base_generic.html' %}
+
+{% block content %}
+<h2>Respond to Buyer</h2>
+
+<p><strong>Buyer:</strong> {{ message.buyer.username }}</p>
+<p><strong>Message:</strong> {{ message.content }}</p>
+
+<form method="POST">
+    {% csrf_token %}
+    <textarea name="response_content" rows="4" cols="50" placeholder="Enter your response..."></textarea>
+    <button type="submit">Send Response</button>
+</form>
+
+{% endblock %}

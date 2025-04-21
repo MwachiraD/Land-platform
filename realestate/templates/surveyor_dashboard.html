@@ -1,0 +1,80 @@
+{% extends 'base_generic.html' %}
+{% block content %}
+<h1>Welcome, {{ surveyor.email }}</h1>
+
+<section>
+    <h2>Your Profile</h2>
+    <p><strong>Email:</strong> {{ surveyor.email }}</p>
+    <p><strong>Qualifications:</strong> {{ surveyor.qualifications }}</p>
+    <p><strong>Price:</strong> ${{ surveyor.price }}</p>
+    <p><strong>Contacts:</strong> {{ surveyor.contacts }}</p>
+</section>
+
+<section>
+    <h2>Messages from Buyers</h2>
+    <div id="messages-container"></div>
+
+    <h3>Reply</h3>
+    <form id="reply-form">
+        <textarea id="message-text" placeholder="Type reply..."></textarea>
+        <button type="submit">Send</button>
+    </form>
+</section>
+
+<h3>My Chat Rooms</h3>
+<ul>
+    {% for chat_room in chat_rooms %}
+        <li>
+            <a href="{% url 'chat_room' chat_room.id %}">
+                Chat with {{ chat_room.buyer.username }}
+                <a href="{% url 'logout' %}">Logout</a>
+
+            </a>
+        </li>
+    {% empty %}
+        <p>No active chat rooms.</p>
+    {% endfor %}
+</ul>
+
+<script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+<script>
+    const pusher = new Pusher('63dc972fe2ce11dcb834', { cluster: 'mt1' });
+
+    {% for room in chat_rooms %}
+        const channel{{ room.id }} = pusher.subscribe('chat-room-{{ room.id }}');
+        channel{{ room.id }}.bind('new-message', function(data) {
+            const msgDiv = document.createElement('div');
+            msgDiv.textContent = `${data.sender}: ${data.message}`;
+            document.getElementById('messages-container').appendChild(msgDiv);
+        });
+    {% endfor %}
+
+    async function fetchMessages() {
+        const res = await fetch('/messages/surveyor/');
+        const data = await res.json();
+        const container = document.getElementById('messages-container');
+        container.innerHTML = '';
+        data.forEach(msg => {
+            const div = document.createElement('div');
+            div.textContent = `${msg.sender__username}: ${msg.text}`;
+            container.appendChild(div);
+        });
+    }
+
+    document.getElementById('reply-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const text = document.getElementById('message-text').value;
+        if (!text) return;
+        await fetch('/chat/send/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, role: 'surveyor' })
+        });
+        document.getElementById('message-text').value = '';
+        fetchMessages();
+    });
+
+    setInterval(fetchMessages, 3000);
+    fetchMessages();
+</script>
+{% endblock %}

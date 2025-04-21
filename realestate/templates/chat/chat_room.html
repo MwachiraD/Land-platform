@@ -1,0 +1,227 @@
+{% load static %}
+{% load custom_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat Room</title>
+  <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+  <style>
+    body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background-color: #f9f9f9;
+    }
+
+    h1, h3 {
+        color: #333;
+    }
+
+    #messages-container {
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 400px;
+        overflow-y: scroll;
+        background: #fff;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .message {
+        padding: 10px;
+        margin: 10px;
+        border-radius: 10px;
+        max-width: 70%;
+        clear: both;
+        word-wrap: break-word;
+    }
+
+    .own-message {
+        background-color: #d1ffd1;
+        float: right;
+        text-align: right;
+    }
+
+    .other-message {
+        background-color: #e0e0ff;
+        float: left;
+        text-align: left;
+    }
+
+    textarea {
+        width: 100%;
+        resize: none;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    button {
+        padding: 10px 20px;
+        margin-top: 10px;
+        background-color: #007bff;
+        border: none;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    #error-container {
+        margin-top: 10px;
+        color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>Chat Room</h1>
+
+  <p>
+    Logged in as: <strong>{{ user.username|default:user.email }}</strong>
+    &nbsp;|&nbsp;
+    <a href="{% url 'logout' %}" style="color: red; text-decoration: none;">Logout</a>
+  </p>
+
+  <h3>
+    Chatting with:
+    {% if user == chat_room.buyer %}
+        {{ chat_room.seller.email }}
+    {% elif user == chat_room.seller %}
+        {{ chat_room.buyer.username }}
+    {% elif user == chat_room.surveyor %}
+        {{ chat_room.buyer.username }} and {{ chat_room.seller.email }}
+    {% endif %}
+  </h3>
+
+  <!-- Messages Display -->
+  <div id="messages-container">
+    {% for message in messages %}
+      {% with sender=message.sender %}
+        {% if sender.id == user.id and sender|class_name == user|class_name %}
+          <div class="message own-message">
+            <strong>You:</strong>
+            <p>{{ message.content }}</p>
+            <small>{{ message.timestamp }}</small>
+          </div>
+        {% else %}
+          <div class="message other-message">
+            <strong>
+              {% if sender.username %}
+                {{ sender.username }}
+              {% elif sender.email %}
+                {{ sender.email }}
+              {% else %}
+                {{ sender }}
+              {% endif %}
+            </strong>
+            <p>{{ message.content }}</p>
+            <small>{{ message.timestamp }}</small>
+          </div>
+        {% endif %}
+      {% endwith %}
+    {% empty %}
+      <p>No messages yet.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Send Message Form -->
+  <form id="message-form">
+    {% csrf_token %}
+    <textarea id="message-content" rows="4" placeholder="Type your message..." required></textarea><br>
+    <button type="submit">Send</button>
+    <div id="error-container"></div>
+  </form>
+
+  <script>
+    const currentUserId = Number({{ user.id }});
+    const currentUserType = "{{ user|class_name|lower }}";
+
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    document.getElementById('message-form').addEventListener('submit', async function(event) {
+      event.preventDefault();
+
+      const messageContent = document.getElementById('message-content').value.trim();
+      const errorContainer = document.getElementById('error-container');
+
+      if (!messageContent) {
+        errorContainer.textContent = 'Message cannot be empty.';
+        return;
+      }
+
+      try {
+        const response = await fetch('/send-message/{{ chat_room.id }}/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({ message: messageContent })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.status === 'Message sent successfully') {
+          document.getElementById('message-content').value = '';
+          errorContainer.textContent = '';
+        } else {
+          errorContainer.textContent = data.error || 'Failed to send message.';
+        }
+      } catch (error) {
+        errorContainer.textContent = 'Error: ' + error.message;
+      }
+    });
+
+    const pusher = new Pusher('63dc972fe2ce11dcb834', {
+      cluster: 'mt1',
+      encrypted: true
+    });
+
+    const channel = pusher.subscribe('chatroom-{{ chat_room.id }}');
+    channel.bind('new-message', function(data) {
+      const container = document.getElementById('messages-container');
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message');
+
+      const isOwn = Number(data.sender_id) === currentUserId &&
+                    data.sender_type.toLowerCase() === currentUserType;
+
+      if (isOwn) {
+        messageDiv.classList.add('own-message');
+        messageDiv.innerHTML = `
+          <strong>You:</strong>
+          <p>${data.message}</p>
+          <small>${data.timestamp}</small>
+        `;
+      } else {
+        messageDiv.classList.add('other-message');
+        messageDiv.innerHTML = `
+          <strong>${data.sender}:</strong>
+          <p>${data.message}</p>
+          <small>${data.timestamp}</small>
+        `;
+      }
+
+      container.appendChild(messageDiv);
+      container.scrollTop = container.scrollHeight;
+    });
+  </script>
+</body>
+</html>

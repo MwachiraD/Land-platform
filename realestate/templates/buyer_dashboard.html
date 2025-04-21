@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Buyer Dashboard</title>
+    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+</head>
+<body>
+    <h1>Welcome, {{ user.username }}!</h1>
+
+    <!-- Seller Land Listings -->
+    <h2>Land Listings by Sellers</h2>
+    {% for seller in sellers %}
+        <div class="listing">
+            <h3>{{ seller.username }}</h3>
+            <p>Land Size: {{ seller.land_size }}</p>
+            <p>Location: {{ seller.location }}</p>
+            <p>Price: {{ seller.price }}</p>
+            {% if seller.image %}
+                <img src="{{ seller.image.url }}" alt="Land Image" width="300">
+            {% endif %}
+            <button class="start-chat-button" data-target-id="{{ seller.id }}" data-target-type="seller">Start Chat with Seller</button>
+        </div>
+    {% empty %}
+        <p>No listings available from sellers.</p>
+    {% endfor %}
+
+    <!-- Surveyor Listings -->
+    <h2>Surveying Services</h2>
+    {% for surveyor in surveyors %}
+        <div class="service">
+            <h3>{{ surveyor.username }}</h3>
+            <p>Qualifications: {{ surveyor.qualifications }}</p>
+            <p>Price: {{ surveyor.price }}</p>
+            <p>Contacts: {{ surveyor.contacts }}</p>
+            <button class="start-chat-button" data-target-id="{{ surveyor.id }}" data-target-type="surveyor">Start Chat with Surveyor</button>
+        </div>
+    {% empty %}
+        <p>No surveyor services available.</p>
+        <a href="{% url 'logout' %}">Logout</a>
+
+    {% endfor %}
+
+    <script>
+        Pusher.logToConsole = true;
+        var pusher = new Pusher('63dc972fe2ce11dcb834', {
+            cluster: 'mt1'
+        });
+
+        function startChat(targetId, targetType) {
+            fetch(`/start-chat/${targetType}/${targetId}/`, {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'Chat started') {
+                    const chatRoomId = data.chat_room_id;
+                    window.location.href = `/chat-room/${chatRoomId}/`;
+                } else {
+                    alert('Error starting chat.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        document.querySelectorAll('.start-chat-button').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.getAttribute('data-target-id');
+                const type = this.getAttribute('data-target-type');
+                startChat(id, type);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!-- land_listings.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Land Listings</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <h1>Available Land Listings</h1>
+    <div class="land-listings">
+        {% for land in lands %}
+            <div class="land-item">
+                <h2>Size: {{ land.size }} acres</h2>
+                <p>Location: {{ land.location }}</p>
+                <p>Price: KES {{ land.price }}</p>
+                {% if land.image %}
+                    <img src="{{ land.image.url }}" alt="Image of land at {{ land.location }}">
+                {% endif %}
+            </div>
+        {% empty %}
+            <p>No land listings are available at the moment.</p>
+        {% endfor %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!-- register_seller.html -->
+
+{% extends 'base_generic.html' %}
+
+{% block content %}
+<h2>Register as a Seller</h2>
+
+<form method="post" action="{% url 'register_seller' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    
+    <button type="submit">Register</button>
+</form>
+
+{% if form.errors %}
+    <div class="error-messages">
+        <h3>Please correct the errors below:</h3>
+        {% for field, errors in form.errors.items %}
+            <p><strong>{{ field }}:</strong> {{ errors|join:", " }}</p>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% endblock %}
+

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Land Platform</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'realestate/style.css' %}">
+    <style>
+        /* Global styling */
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        /* Styles for the pop-up menu */
+        .login-popup {
+            position: absolute;
+            display: none;
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        .login-popup a {
+            display: block;
+            margin: 5px 0;
+            text-decoration: none;
+            color: #333;
+        }
+        .login-popup a:hover {
+            color: #007BFF;
+        }
+
+      /* Hero Section Styles */
+/* Hero Section Styles */
+.hero {
+    background: url('/static/realestate/images/land.jpg') center/cover no-repeat;
+    min-height: 110vh; /* Reduced viewport height to avoid overextension */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7); /* Add shadow for readability */
+    padding: 40px 20px; /* Adjusted padding for a more compact design */
+    margin: 0;
+    box-sizing: border-box;
+}
+
+/* Hero Text Styles */
+.hero h1 {
+    font-size: 3.5em; /* Reduced font size for a balanced look */
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.hero p {
+    font-size: 1.3em; /* Slightly increased font size for better readability */
+    max-width: 600px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+
+
+        /* Welcome header styling */
+        .welcome-header {
+            background-color: #f8f9fa;
+            padding: 10px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-header">Welcome to Land Platform</div>
+
+    <header>
+        <nav>
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">About Us</a></li>
+                <li><a href="register.html">Register</a></li>
+                <li>
+                    <a href="#" id="login-button">Log In</a>
+                    <!-- Pop-up menu -->
+                    <div id="login-popup" class="login-popup">
+                        <a href="{% url 'login' %}">Login as Buyer</a>
+                        <a href="{% url 'seller_login' %}">Login as Seller</a>
+                        <a href="{% url 'login_surveyor' %}">Login as Surveyor</a>
+                    </div>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>Welcome to Land Platform</h1>
+            <p>Your one-stop platform to buy, sell, or get surveying services for land!</p>
+        </section>
+
+        <section class="services">
+            <div class="service">
+                <h2>Buy Land</h2>
+                <p>Find the perfect plot of land.</p>
+                <a href="{% url 'register_buyer' %}">Register as Buyer</a>
+            </div>
+
+            <div class="service">
+                <h2>Sell Land</h2>
+                <p>List your land for sale.</p>
+                <a href="{% url 'register_seller' %}">Register as Seller</a>
+            </div>
+
+            <div class="service">
+                <h2>Surveyors</h2>
+                <p>Offer your professional services.</p>
+                <a href="{% url 'register_surveyor' %}">Register as Surveyor</a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Land Platform. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // JavaScript to toggle the login pop-up menu
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginButton = document.getElementById('login-button');
+            const loginPopup = document.getElementById('login-popup');
+
+            loginButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                // Toggle visibility of the pop-up menu
+                if (loginPopup.style.display === 'block') {
+                    loginPopup.style.display = 'none';
+                } else {
+                    loginPopup.style.display = 'block';
+                }
+            });
+
+            // Hide the pop-up menu when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!loginButton.contains(event.target) && !loginPopup.contains(event.target)) {
+                    loginPopup.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
