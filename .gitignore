@@ -1,0 +1,67 @@
+# Django/Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.env
+*.env.*
+!.env.example
+*.sqlite3
+migrations/
+*.log
+local_settings.py
+settings.py
+*.bak
+
+# Frontend (HTML, JS, CSS)
+node_modules/
+npm-debug.log
+yarn-error.log
+/dist
+/build
+*.min.js.map
+*.css.map
+
+# MySQL/Database
+*.sql
+*.sql.gz
+*.mysql
+mysql_data/
+
+# Media and Static Files (Django)
+media/
+staticfiles/
+collected_static/
+
+# IDE/Editor Files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS and Temporary Files
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+*.bak
+*.backup
+
+# Sensitive Files
+*.key
+*.pem
+*.cert
+secrets.json
+
+# Testing/Coverage
+.coverage
+coverage.xml
+*.cover
+htmlcov/
+.pytest_cache/ 
