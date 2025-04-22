@@ -73,6 +73,7 @@ import traceback
 from django.contrib.auth import logout
 from django.shortcuts import redirect
 from django.contrib import messages
+import logging
 
 
 
@@ -344,39 +345,42 @@ def custom_login(request):
     
     return render(request, 'realestate/login.html')
 
+logger = logging.getLogger(__name__)
+
 def login_surveyor(request):
-    print("Surveyor login view called")
+    logger.debug("Surveyor login view called")
     if request.method == 'POST':
-        print("Processing POST request")
+        logger.debug("Processing POST request")
         form = SurveyorLoginForm(request.POST)
         if form.is_valid():
-            print("Form is valid")
-            username_or_email = form.cleaned_data['username_or_email']
+            logger.debug("Form is valid")
+            email = form.cleaned_data['email']
             password = form.cleaned_data['password']
             
             # Authenticate using the custom backend
-            surveyor = authenticate(request, username=username_or_email, password=password)
-            print(f"Surveyor after authenticate: {surveyor}")
+            logger.debug(f"Attempting surveyor login: {email}")
+            surveyor = authenticate(request, email=email, password=password)
+            logger.debug(f"Surveyor after authenticate: {surveyor}")
 
             if surveyor is not None:
                 login(request, surveyor, backend='realestate.backends.SurveyorAuthBackend')
-                print("Login successful")
+                logger.debug("Login successful")
                 
                 # Store the surveyor's ID in the session
                 request.session['surveyor_id'] = surveyor.id
-                print(f"Surveyor ID stored in session: {request.session['surveyor_id']}")
+                logger.debug(f"Surveyor ID stored in session: {request.session['surveyor_id']}")
                 
-                return redirect('surveyor_dashboard')  # Redirect to surveyor's dashboard
+                return redirect('surveyor_dashboard')
             else:
-                print("Authentication failed")
-                messages.error(request, 'Invalid username or password.')
+                logger.error(f"Surveyor authentication failed: {email}")
+                messages.error(request, 'Invalid email or password.')
         else:
-            print("Form is invalid")
-            print(form.errors)  # Print form errors for debugging
+            logger.debug("Form is invalid")
+            logger.debug(form.errors)
     else:
-        print("Not a POST request")
+        logger.debug("Not a POST request")
         form = SurveyorLoginForm()
-        
+    
     return render(request, 'realestate/login_surveyor.html', {'form': form})
 
 

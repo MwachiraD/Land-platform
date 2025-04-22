@@ -82,7 +82,7 @@ class Land(models.Model):
 
     def __str__(self):
         return f"{self.size} acres at {self.location}"
-
+    
 class SurveyorManager(BaseUserManager):
     def create_user(self, username, email, password=None, **extra_fields):
         if not email:
@@ -96,7 +96,11 @@ class SurveyorManager(BaseUserManager):
     def create_superuser(self, username, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-
+        extra_fields.setdefault('is_active', True)
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
         return self.create_user(username, email, password, **extra_fields)
 
 class Surveyor(AbstractBaseUser, PermissionsMixin):
@@ -108,19 +112,15 @@ class Surveyor(AbstractBaseUser, PermissionsMixin):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.0, null=True, blank=True)
     contacts = models.CharField(max_length=255)
     chat_rooms = GenericRelation('ChatRoom', related_query_name='surveyors')
-   
-
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-
     objects = SurveyorManager()
-
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
     def __str__(self):
         return self.username
-    
+
 
 class ChatRoom(models.Model):
     buyer = models.ForeignKey('Buyer', on_delete=models.CASCADE, null=True, blank=True)

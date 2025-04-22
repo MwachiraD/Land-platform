@@ -5,6 +5,12 @@ from django.contrib.auth import get_user_model
 from realestate.models import Surveyor
 from django.contrib.auth.backends import BaseBackend
 from realestate.models import Seller
+from django.contrib.auth.backends import BaseBackend
+import logging
+
+
+
+
 
 class SellerAuthBackend(BaseBackend):
     def authenticate(self, request, username=None, password=None):
@@ -45,20 +51,21 @@ class EmailBackend(BaseBackend):
             return None
 
 
+logger = logging.getLogger(__name__)
+
 class SurveyorAuthBackend(BaseBackend):
-    def authenticate(self, request, username=None, password=None):
-        print(f"SurveyorAuthBackend: trying to authenticate {username}")
+    def authenticate(self, request, email=None, password=None, **kwargs):
+        logger.debug(f"SurveyorAuthBackend: trying to authenticate {email}")
         try:
-            surveyor = Surveyor.objects.get(email=username)
-            print("SurveyorAuthBackend: found surveyor", surveyor.email)
-            if surveyor.check_password(password):
-                print("SurveyorAuthBackend: password OK")
+            surveyor = Surveyor.objects.get(email=email)
+            if surveyor.check_password(password) and surveyor.is_active:
+                logger.debug(f"SurveyorAuthBackend: authenticated {email}")
                 return surveyor
-            else:
-                print("SurveyorAuthBackend: password incorrect")
+            logger.debug(f"SurveyorAuthBackend: invalid password or inactive for {email}")
+            return None
         except Surveyor.DoesNotExist:
-            print("SurveyorAuthBackend: no such Surveyor")
-        return None
+            logger.debug(f"SurveyorAuthBackend: no such Surveyor {email}")
+            return None
 
     def get_user(self, user_id):
         try:

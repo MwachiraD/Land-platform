@@ -98,7 +98,7 @@ class LandForm(forms.ModelForm):
 User = get_user_model()
 
 class SurveyorLoginForm(forms.Form):
-    username_or_email = forms.CharField(max_length=254, label='Username or Email')
+    email = forms.EmailField(label='Email', max_length=254)
     password = forms.CharField(widget=forms.PasswordInput, label='Password')
 
     def clean_username_or_email(self):
