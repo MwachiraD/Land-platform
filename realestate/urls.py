@@ -7,6 +7,12 @@ from .views import chat_error
 from realestate.views import custom_login, seller_login
 from .views import logout_user
 
+from django.urls import path
+from .views import mpesa_callback
+from realestate.views import promote_surveyor
+
+
+
 
 
 urlpatterns = [
@@ -37,6 +43,13 @@ urlpatterns = [
     path('login/', custom_login, name='buyer_login'),
     path('send-message/<int:chat_room_id>/', views.send_message, name='send_message'),
     path('logout/', logout_user, name='logout'),
+    path('mpesa/callback/', mpesa_callback, name='mpesa_callback'),
+    path('promote-surveyor/', promote_surveyor, name='promote_surveyor'),
+    path('promote-in-progress/', views.promote_in_progress, name='promote_in_progress'),
+    
+
+  
+
 
 
 

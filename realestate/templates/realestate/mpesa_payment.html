@@ -1,0 +1,17 @@
+{% extends 'base_generic.html' %}
+{% block content %}
+  <h2>Pay KES {{ amount }} for Booking</h2>
+  <form method="post">
+    {% csrf_token %}
+    <label>Phone Number (M-Pesa)</label>
+    <input type="text" name="phone_number" placeholder="2547XXXXXXXX" required>
+    <button type="submit">Pay</button>
+  </form>
+  {% if messages %}
+    <ul>
+      {% for message in messages %}
+        <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

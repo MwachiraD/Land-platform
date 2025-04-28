@@ -1,23 +1,36 @@
 {% extends 'base_generic.html' %}
+
 {% block content %}
 <h1>Welcome, {{ seller.email }}</h1>
+
+<!-- Ensure CSRF token is correctly rendered in the body, outside <head> -->
+<div id="csrf_token_test" style="display:none;">{{ csrf_token }}</div>
 
 <!-- Land Listings Section -->
 <section>
     <h2>Your Land Listings</h2>
     <a href="{% url 'add_land' %}" class="btn">Add New Land Listing</a>
-    {% if land_listings %}
+    {% if seller.lands.all %}
         <ul>
-            {% for listing in land_listings %}
+            {% for land in seller.lands.all %}
                 <li>
-                    {% if listing.image %}
-                        <img src="{{ listing.image.url }}" alt="Land Image" width="300">
+                    {% if land.image %}
+                        <img src="{{ land.image.url }}" alt="Land Image" width="300">
                     {% endif %}
-                    <p><strong>Size:</strong> {{ listing.land_size }} acres</p>
-                    <p><strong>Location:</strong> {{ listing.location }}</p>
-                    <p><strong>Price:</strong> ${{ listing.price }}</p>
-                    <p>{{ listing.description }}</p>
-                    <a href="{% url 'edit_listing' listing.id %}">Edit</a>
+                    <p><strong>Size:</strong> {{ land.size }} acres</p>
+                    <p><strong>Location:</strong> {{ land.location }}</p>
+                    <p><strong>Price:</strong> ${{ land.price }}</p>
+                    <p>{{ land.description }}</p>
+
+                    {% if land.is_featured %}
+                        <span class="badge">🌟 Featured</span>
+                    {% else %}
+                        <button onclick="featureLand({{ land.id }})" class="btn btn-primary">
+                            Feature This Land (Ksh 200)
+                        </button>
+                    {% endif %}
+                    
+                    <a href="{% url 'edit_listing' land.id %}">Edit</a>
                 </li>
             {% endfor %}
         </ul>
@@ -56,7 +69,6 @@
                 <p>Chat with {{ chat_room.buyer.username }}</p>
                 <a href="{% url 'chat_room' chat_room.id %}">Open Chat</a>
                 <a href="{% url 'logout' %}">Logout</a>
-
             </li>
         {% endfor %}
     </ul>
@@ -67,11 +79,19 @@
 <!-- Pusher and JavaScript -->
 <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
 <script>
+    // Fetch CSRF token from the div where it's rendered in the HTML
+    const csrfToken = document.getElementById('csrf_token_test').textContent.trim();
+    console.log('CSRF Token:', csrfToken);  // Log it to see if it has a valid value
+
+    // Ensure CSRF token is available
+    if (!csrfToken) {
+        console.error('CSRF token is not available!');
+    }
+
     // Pusher setup
     const pusher = new Pusher('63dc972fe2ce11dcb834', { cluster: 'mt1' });
     console.log('Pusher initialized');
 
-    // Subscribe to chat room channels
     {% for room in chat_rooms %}
         const channel{{ room.id }} = pusher.subscribe('chatroom-{{ room.id }}');
         console.log('Subscribed to channel: chatroom-{{ room.id }}');
@@ -94,7 +114,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
+                    'X-CSRFToken': csrfToken  // Use dynamic CSRF token
                 },
                 body: JSON.stringify({ message: text })
             });
@@ -108,6 +128,41 @@
             console.error('Fetch error:', error);
         }
     });
+
+    // Feature Land function
+    function featureLand(landId) {
+        fetch(`/feature-land/${landId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,  // Use dynamic CSRF token
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({})
+        })
+        .then(response => {
+            console.log('Response Status:', response.status);  // Log status
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Response Body:', text);  // Log the response body if not OK
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();  // reload page to show "🌟 Featured"
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Network error occurred.');
+        });
+    }
 </script>
 
 <style>
@@ -136,4 +191,5 @@
         margin-bottom: 10px;
     }
 </style>
+
 {% endblock %}

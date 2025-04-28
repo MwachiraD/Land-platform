@@ -21,6 +21,9 @@ from .models import Land
 
 
 
+class SurveyorPromotionForm(forms.Form):
+    surveyor_id = forms.IntegerField()
+    phone_number = forms.CharField(max_length=15, required=True)
 
 class SellerForm(forms.ModelForm):
     class Meta:

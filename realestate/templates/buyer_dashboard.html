@@ -12,7 +12,7 @@
     <!-- Seller Land Listings -->
     <h2>Land Listings by Sellers</h2>
     {% for seller in sellers %}
-        <div class="listing">
+        <div class="listing" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; border-radius: 10px;">
             <h3>{{ seller.username }}</h3>
             <p>Land Size: {{ seller.land_size }}</p>
             <p>Location: {{ seller.location }}</p>
@@ -20,7 +20,10 @@
             {% if seller.image %}
                 <img src="{{ seller.image.url }}" alt="Land Image" width="300">
             {% endif %}
-            <button class="start-chat-button" data-target-id="{{ seller.id }}" data-target-type="seller">Start Chat with Seller</button>
+            <br><br>
+            <button class="start-chat-button" data-target-id="{{ seller.id }}" data-target-type="seller">
+                Start Chat with Seller
+            </button>
         </div>
     {% empty %}
         <p>No listings available from sellers.</p>
@@ -29,18 +32,32 @@
     <!-- Surveyor Listings -->
     <h2>Surveying Services</h2>
     {% for surveyor in surveyors %}
-        <div class="service">
-            <h3>{{ surveyor.username }}</h3>
+        <div class="service" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; border-radius: 10px;">
+            <h3>
+                {{ surveyor.username }}
+                {% if surveyor.is_promoted %}
+                <span class="promoted-badge">
+                    ✨ Promoted
+                </span>
+                    <span style="background-color: #28a745; color: white; padding: 4px 8px; border-radius: 5px; font-size: 0.8em; margin-left: 10px;">
+                        Promoted
+                    </span>
+                {% endif %}
+            </h3>
             <p>Qualifications: {{ surveyor.qualifications }}</p>
             <p>Price: {{ surveyor.price }}</p>
             <p>Contacts: {{ surveyor.contacts }}</p>
-            <button class="start-chat-button" data-target-id="{{ surveyor.id }}" data-target-type="surveyor">Start Chat with Surveyor</button>
+            <br>
+            <button class="start-chat-button" data-target-id="{{ surveyor.id }}" data-target-type="surveyor">
+                Start Chat with Surveyor
+            </button>
         </div>
     {% empty %}
         <p>No surveyor services available.</p>
-        <a href="{% url 'logout' %}">Logout</a>
-
     {% endfor %}
+
+    <br>
+    <a href="{% url 'logout' %}">Logout</a>
 
     <script>
         Pusher.logToConsole = true;
@@ -72,5 +89,32 @@
             });
         });
     </script>
+    <style>
+        .promoted-badge {
+            background: linear-gradient(90deg, #ffdd57, #ffd700, #ffdd57);
+            background-size: 200% 200%;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            animation: shimmer 2s infinite;
+            font-weight: bold;
+            margin-left: 10px;
+            display: inline-block;
+        }
+        
+        @keyframes shimmer {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+        </style>
+        
 </body>
 </html>

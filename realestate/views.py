@@ -2,7 +2,6 @@ from django.shortcuts import render
 from django.shortcuts import render
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import Buyer 
 from django.contrib.auth import authenticate, login
 from .models import Buyer, Seller, Surveyor
 from django.contrib.auth.decorators import login_required
@@ -74,11 +73,170 @@ from django.contrib.auth import logout
 from django.shortcuts import redirect
 from django.contrib import messages
 import logging
+from .models import Land
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+from .mpesa.stk_push import lipa_na_mpesa_online
+logger = logging.getLogger(__name__)
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+from django.shortcuts import redirect
+from django.contrib import messages
+from .mpesa.stk_push import lipa_na_mpesa_online
+from .models import Surveyor 
+from .forms import SurveyorPromotionForm
+import threading
+import time
 
 
 
 
 
+
+
+
+
+
+def promote_in_progress(request):
+    return render(request, 'promote_in_progress.html')
+
+from .models import Surveyor 
+@csrf_exempt
+def promote_surveyor(request):
+    if request.method == 'POST':
+        form = SurveyorPromotionForm(request.POST)
+
+        if form.is_valid():
+            surveyor_id = form.cleaned_data['surveyor_id']
+            phone_number = form.cleaned_data['phone_number']
+
+            surveyor = get_object_or_404(Surveyor, id=surveyor_id)
+
+            response = lipa_na_mpesa_online(phone_number, 500, surveyor_id)
+            print("MPESA Response:", response)  # 🔥 Debugging print
+
+            if response and response.get('ResponseCode') == "0":  # ✅ Safe check
+                messages.success(request, "STK Push sent! Please complete the payment on your phone.")
+
+                # 🔥 Start a background thread to promote after 10 seconds
+                def promote_after_delay():
+                    time.sleep(10)
+                    surveyor.is_promoted = True
+                    surveyor.save()
+                    print(f"Surveyor {surveyor_id} promoted automatically after 10 seconds.")
+
+                threading.Thread(target=promote_after_delay).start()
+
+                return redirect('promote_in_progress')  # ✅ Redirect to spinner page
+            else:
+                messages.error(request, "Failed to initiate payment. Please try again.")
+                return redirect('surveyor_dashboard')
+        else:
+            messages.error(request, "Invalid form submission.")
+            return redirect('surveyor_dashboard')
+    else:
+        form = SurveyorPromotionForm()
+
+    return render(request, 'promote_surveyor.html', {'form': form})
+
+
+
+    consumer_key = settings.CONSUMER_KEY
+    consumer_secret = settings.CONSUMER_SECRET
+    auth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+    r = requests.get(auth_url, auth=(consumer_key, consumer_secret))
+    access_token = r.json()['access_token']
+    return access_token
+
+def stk_push(phone_number, amount, account_reference, transaction_desc):
+    access_token = get_access_token()
+    headers = {"Authorization": "Bearer %s" % access_token}
+
+    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    password = base64.b64encode((settings.BUSINESS_SHORTCODE + settings.PASSKEY + timestamp).encode()).decode()
+
+    payload = {
+        "BusinessShortCode": settings.BUSINESS_SHORTCODE,
+        "Password": password,
+        "Timestamp": timestamp,
+        "TransactionType": "CustomerPayBillOnline",
+        "Amount": amount,
+        "PartyA": phone_number,
+        "PartyB": settings.BUSINESS_SHORTCODE,
+        "PhoneNumber": phone_number,
+        "CallBackURL": "https://yourdomain.com/callback_url/",
+        "AccountReference": account_reference,
+        "TransactionDesc": transaction_desc,
+    }
+
+    response = requests.post("https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest", json=payload, headers=headers)
+    return response.json()
+@login_required(login_url='/login/seller/') 
+def feature_land(request, land_id):
+    print(f"User: {request.user}")
+    print(f"Is authenticated: {request.user.is_authenticated}")
+    print(f"Request method: {request.method}")
+    print("Feature land view called.")
+
+
+    if request.method == 'POST':
+        try:
+            land = get_object_or_404(Land, id=land_id)
+            print(f"Land object found: {land}")
+            
+            # Proceed with the STK push logic...
+            request.session['land_to_feature'] = land.id
+
+            phone_number = '254723175831'  # or dynamically get seller's phone
+            amount = 200
+
+            lipa_na_mpesa_online(phone_number, amount)
+            
+            return JsonResponse({'success': True, 'message': 'STK Push Sent. Please complete payment.'})
+        except Exception as e:
+            print(f"Error: {e}")
+            return JsonResponse({'success': False, 'message': 'Error processing request.'}, status=500)
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=400)
+
+
+
+@csrf_exempt
+def mpesa_callback(request):
+    logger.info("Received callback: %s", request.body)
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        print("CALLBACK RECEIVED:", data)
+
+        result_code = data['Body']['stkCallback']['ResultCode']
+        checkout_request_id = data['Body']['stkCallback']['CheckoutRequestID']
+
+        try:
+            # Find the transaction by checkout_request_id
+            transaction = STKPushTransaction.objects.get(checkout_request_id=checkout_request_id)
+        except STKPushTransaction.DoesNotExist:
+            return JsonResponse({"ResultCode": 0, "ResultDesc": "Transaction not found"}, status=404)
+
+        if result_code == 0:
+            # Payment was successful
+            transaction.paid = True
+            transaction.save()
+
+            # Promote the surveyor
+            surveyor = transaction.surveyor
+            surveyor.is_promoted = True
+            surveyor.save()
+
+            print(f"Surveyor {surveyor.id} promoted successfully after payment!")
+
+        else:
+            print(f"Payment failed or cancelled for CheckoutRequestID {checkout_request_id}")
+
+        return JsonResponse({"ResultCode": 0, "ResultDesc": "Accepted"})
+
+    return JsonResponse({"message": "Method not allowed"}, status=405)
 
 
 
@@ -240,17 +398,10 @@ def register_surveyor(request):
 from django.shortcuts import render
 @login_required
 def buyer_dashboard(request):
-    sellers = Seller.objects.all()  # Get all sellers' data
-    surveyors = Surveyor.objects.all() 
-     # Get all surveyors' data
+    sellers = Seller.objects.all()
+    surveyors = Surveyor.objects.all().order_by('-is_promoted', 'id')  # ✅ Promoted first
     return render(request, 'buyer_dashboard.html', {'sellers': sellers, 'surveyors': surveyors})
 
-
-@login_required
-def buyer_dashboard(request):
-    sellers = Seller.objects.all()  # Retrieve all sellers' data
-    surveyors = Surveyor.objects.all()  # Retrieve all surveyors' data
-    return render(request, 'buyer_dashboard.html', {'sellers': sellers, 'surveyors': surveyors})
 
 
 def add_land(request):
@@ -395,7 +546,13 @@ pusher_client = pusher.Pusher(
 )
 
 def start_chat(request, target_type, target_id):
-    buyer = request.user
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Authentication required'}, status=403)
+
+    try:
+        buyer = Buyer.objects.get(id=request.user.id)
+    except Buyer.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Only buyers can start chats.'}, status=403)
 
     if target_type == "seller":
         target = get_object_or_404(Seller, id=target_id)
@@ -404,7 +561,7 @@ def start_chat(request, target_type, target_id):
         target = get_object_or_404(Surveyor, id=target_id)
         target_field = 'surveyor'
     else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid target type'})
+        return JsonResponse({'status': 'error', 'message': 'Invalid target type'}, status=400)
 
     chat_room, created = ChatRoom.objects.get_or_create(
         buyer=buyer,
@@ -417,11 +574,9 @@ def start_chat(request, target_type, target_id):
         'message': 'You have a new message from a buyer.',
     }
 
-    # --- wrap the Pusher trigger in try/except ---
     try:
         pusher_client.trigger(channel, 'chat-started', payload)
     except Exception as e:
-        # you could use logging.warning(...) instead of print in production
         print("⚠️ Pusher trigger failed:", e)
 
     return JsonResponse({
@@ -462,13 +617,13 @@ def send_message(request, chat_room_id):
         actual_sender = None
 
         print("🔍 Verifying sender identity from ChatRoom...")
-        if chat_room.buyer and chat_room.buyer.id == user.id:
+        if isinstance(user, Buyer) and chat_room.buyer and chat_room.buyer.id == user.id:
             actual_sender = chat_room.buyer
             print("✅ Sender confirmed as Buyer")
-        elif chat_room.seller and chat_room.seller.email == user.email:
+        elif isinstance(user, Seller) and chat_room.seller and chat_room.seller.id == user.id:
             actual_sender = chat_room.seller
             print("✅ Sender confirmed as Seller")
-        elif chat_room.surveyor and chat_room.surveyor.email == user.email:
+        elif isinstance(user, Surveyor) and chat_room.surveyor and chat_room.surveyor.id == user.id:
             actual_sender = chat_room.surveyor
             print("✅ Sender confirmed as Surveyor")
         else:
@@ -481,7 +636,6 @@ def send_message(request, chat_room_id):
         # Save the message
         message = Message.objects.create(
             chat_room=chat_room,
-            sender=actual_sender,
             content_type=content_type,
             object_id=actual_sender.id,
             content=message_text
@@ -492,14 +646,13 @@ def send_message(request, chat_room_id):
         sender_type = actual_sender.__class__.__name__.lower()
 
         # Push to Pusher
-        
         pusher_client.trigger(
             f'chatroom-{chat_room_id}',
             'new-message',
             {
                 'sender': sender_username,
                 'sender_type': sender_type,
-                 'sender_id': actual_sender.id,  
+                'sender_id': actual_sender.id,
                 'message': message.content,
                 'timestamp': message.timestamp.strftime('%Y-%m-%d %H:%M:%S')
             }
@@ -607,3 +760,14 @@ def logout_user(request):
     messages.success(request, 'Logged out successfully.')
     return redirect('home')
 
+
+def feature_land(request, land_id):
+    land = get_object_or_404(Land, id=land_id, seller=request.user)
+
+    if request.method == 'POST':
+        # Simulate successful payment
+        land.is_featured = True
+        land.save()
+        messages.success(request, "Your land has been featured successfully!")
+
+    return redirect('seller_dashboard')

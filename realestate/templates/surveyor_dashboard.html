@@ -1,6 +1,19 @@
 {% extends 'base_generic.html' %}
+
 {% block content %}
+{% if messages %}
+  {% for message in messages %}
+    <div 
+      style="padding: 10px; margin-bottom: 10px; border-radius: 5px;
+             {% if message.tags == 'success' %} background-color: #d4edda; color: #155724;
+             {% elif message.tags == 'error' %} background-color: #f8d7da; color: #721c24; {% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+
 <h1>Welcome, {{ surveyor.email }}</h1>
+
 
 <section>
     <h2>Your Profile</h2>
@@ -8,7 +21,37 @@
     <p><strong>Qualifications:</strong> {{ surveyor.qualifications }}</p>
     <p><strong>Price:</strong> ${{ surveyor.price }}</p>
     <p><strong>Contacts:</strong> {{ surveyor.contacts }}</p>
+    
+    <!-- Show Promoted Badge -->
+    {% if surveyor.is_promoted %}
+    
+        <p><span class="badge badge-success">Promoted</span></p>
+    {% else %}
+        <p><span class="badge badge-secondary">Not Promoted</span></p>
+    {% endif %}
 </section>
+
+<!-- Promote My Services Section -->
+{% if not surveyor.is_promoted %}
+    <form method="POST" action="{% url 'promote_surveyor' %}">
+        {% csrf_token %}
+        
+        <!-- Pass surveyor_id as hidden -->
+        <input type="hidden" name="surveyor_id" value="{{ surveyor.id }}">
+        
+        <!-- Ask the user for phone number -->
+        <div>
+            <label for="phone_number">Phone Number:</label>
+            <input type="text" name="phone_number" id="phone_number" required placeholder="e.g., 254723175831">
+        </div>
+
+        <button type="submit">Promote My Services (Ksh 500)</button>
+    </form>
+{% else %}
+    <p>Your services are already promoted!</p>
+{% endif %}
+
+<hr>
 
 <section>
     <h2>Messages from Buyers</h2>
@@ -27,8 +70,6 @@
         <li>
             <a href="{% url 'chat_room' chat_room.id %}">
                 Chat with {{ chat_room.buyer.username }}
-                <a href="{% url 'logout' %}">Logout</a>
-
             </a>
         </li>
     {% empty %}
@@ -36,6 +77,9 @@
     {% endfor %}
 </ul>
 
+<a href="{% url 'logout' %}">Logout</a>
+
+<!-- Pusher and Message Fetching JS -->
 <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
 <script>
     const pusher = new Pusher('63dc972fe2ce11dcb834', { cluster: 'mt1' });
@@ -77,4 +121,23 @@
     setInterval(fetchMessages, 3000);
     fetchMessages();
 </script>
+<style>
+    .badge {
+        padding: 5px 10px;
+        font-size: 14px;
+        border-radius: 5px;
+    }
+
+    .badge-success {
+        background-color: green;
+        color: white;
+    }
+
+    .badge-secondary {
+        background-color: grey;
+        color: white;
+    }
+</style>
+
 {% endblock %}
+
