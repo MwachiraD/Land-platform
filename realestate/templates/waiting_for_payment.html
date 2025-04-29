@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Processing Payment...</title>
+    <style>
+        .spinner {
+            margin: 100px auto;
+            width: 80px;
+            height: 80px;
+            border: 10px solid #f3f3f3;
+            border-top: 10px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 20px;
+        }
+    </style>
+
+    <script>
+        // Wait 10 seconds, then redirect to chat room
+        setTimeout(function () {
+            window.location.href = "{% url 'chat_room' chat_room_id %}";
+        }, 10000);
+    </script>
+</head>
+<body>
+    <div class="spinner"></div>
+    <div class="message">Processing payment... Please approve on your phone.</div>
+</body>
+</html>

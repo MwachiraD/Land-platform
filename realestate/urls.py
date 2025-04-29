@@ -10,6 +10,9 @@ from .views import logout_user
 from django.urls import path
 from .views import mpesa_callback
 from realestate.views import promote_surveyor
+from .views import initiate_chat_payment
+from .views import initiate_seller_verification_payment
+
 
 
 
@@ -46,6 +49,11 @@ urlpatterns = [
     path('mpesa/callback/', mpesa_callback, name='mpesa_callback'),
     path('promote-surveyor/', promote_surveyor, name='promote_surveyor'),
     path('promote-in-progress/', views.promote_in_progress, name='promote_in_progress'),
+    path('mpesa/buyer/callback/', views.buyer_mpesa_callback, name='buyer_mpesa_callback'),
+    path('initiate-chat-payment/<int:seller_id>/', initiate_chat_payment, name='initiate_chat_payment'),
+    path('initiate-seller-verification-payment/<int:seller_id>/', initiate_seller_verification_payment, name='initiate_seller_verification_payment'),
+
+
     
 
   

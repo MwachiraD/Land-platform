@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter Phone Number for Seller Verification</title>
+</head>
+<body>
+    <h2>Enter Phone Number for Seller Verification</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <label for="phone_number">Phone Number:</label>
+        <input type="text" id="phone_number" name="phone_number" required>
+        <button type="submit">Pay Ksh 300 for Verification</button>
+    </form>
+</body>
+</html>

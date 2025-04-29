@@ -13,7 +13,14 @@
     <h2>Land Listings by Sellers</h2>
     {% for seller in sellers %}
         <div class="listing" style="border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; border-radius: 10px;">
-            <h3>{{ seller.username }}</h3>
+            <h3>
+                
+            {{ seller.username }}
+            {% if seller.is_verified %}
+            <span style="color: green; font-weight: bold; margin-left: 10px;">✅ Verified Seller</span>
+            {% endif %}
+            </h3>
+            
             <p>Land Size: {{ seller.land_size }}</p>
             <p>Location: {{ seller.location }}</p>
             <p>Price: {{ seller.price }}</p>
@@ -64,8 +71,15 @@
         var pusher = new Pusher('63dc972fe2ce11dcb834', {
             cluster: 'mt1'
         });
-
+    
         function startChat(targetId, targetType) {
+            // For sellers: redirect directly
+            if (targetType === 'seller') {
+                window.location.href = `/start-chat/${targetType}/${targetId}/`;
+                return;
+            }
+    
+            // For surveyors: use fetch + redirect as before
             fetch(`/start-chat/${targetType}/${targetId}/`, {
                 method: 'GET'
             })
@@ -80,7 +94,7 @@
             })
             .catch(error => console.error('Error:', error));
         }
-
+    
         document.querySelectorAll('.start-chat-button').forEach(button => {
             button.addEventListener('click', function () {
                 const id = this.getAttribute('data-target-id');
@@ -89,6 +103,7 @@
             });
         });
     </script>
+    
     <style>
         .promoted-badge {
             background: linear-gradient(90deg, #ffdd57, #ffd700, #ffdd57);

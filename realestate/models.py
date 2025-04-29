@@ -17,21 +17,33 @@ from django.conf import settings
 
 
 
-# models.py
 class Payment(models.Model):
-    buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    seller = models.ForeignKey('Seller', on_delete=models.CASCADE)
+    buyer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True, blank=True
+    )
+    seller = models.ForeignKey(
+        'Seller',
+        on_delete=models.CASCADE,
+        null=True, blank=True
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_date = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=100, choices=[('pending', 'Pending'), ('completed', 'Completed')])
+    phone_number = models.CharField(max_length=15, default="")
+    purpose = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    checkout_request_id = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
-        return f"Payment of {self.amount} from {self.buyer.username} to {self.seller.name}"
+        return f"{self.purpose} payment of {self.amount}"
+
 
 
 class UnlockedChat(models.Model):
     buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='unlocked_chats')
-    seller = models.ForeignKey('Seller', on_delete=models.CASCADE, related_name='received_chats')  # <-- notice quotes
+    seller = models.ForeignKey('Seller', on_delete=models.CASCADE, related_name='received_chats')
+    chat_room = models.ForeignKey('ChatRoom', on_delete=models.CASCADE, null=True, blank=True)
     unlocked_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -148,6 +160,7 @@ class Seller(AbstractBaseUser):
     contact_details = models.CharField(max_length=255)
     other_contact_methods = models.CharField(max_length=255)
     chat_rooms = GenericRelation('ChatRoom', related_query_name='sellers')
+    is_verified = models.BooleanField(default=False)
 
     objects = SellerManager()
 
@@ -167,12 +180,16 @@ class Land(models.Model):
     location = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.ImageField(upload_to='land_images/', blank=True, null=True)
-    
-    # New field for featuring
+
     is_featured = models.BooleanField(default=False)
+
+    # Add these two fields 👇
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.size} acres at {self.location}"
+
 
 
 

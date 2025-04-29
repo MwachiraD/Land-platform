@@ -19,7 +19,12 @@ from .models import Land
 
 
 
-
+class PhoneNumberForm(forms.Form):
+    phone_number = forms.CharField(
+        label="M-Pesa Phone Number",
+        max_length=13,
+        widget=forms.TextInput(attrs={'placeholder': 'e.g. 2547XXXXXXXX'})
+    )
 
 class SurveyorPromotionForm(forms.Form):
     surveyor_id = forms.IntegerField()

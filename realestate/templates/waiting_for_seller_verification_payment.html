@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verifying Seller...</title>
+    <style>
+        .spinner {
+            margin: 100px auto;
+            width: 80px;
+            height: 80px;
+            border: 10px solid #f3f3f3;
+            border-top: 10px solid #2ecc71;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 20px;
+        }
+    </style>
+    <script>
+        setTimeout(function () {
+            window.location.href = "{% url 'seller_dashboard' %}";
+        }, 10000);
+    </script>
+</head>
+<body>
+    <div class="spinner"></div>
+    <div class="message">Processing verification... Please approve payment on your phone.</div>
+</body>
+</html>

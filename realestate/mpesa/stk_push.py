@@ -3,6 +3,10 @@ from requests.auth import HTTPBasicAuth
 import base64
 import datetime
 from realestate.models import STKPushTransaction, Surveyor  # ✅ combined import
+from django.utils import timezone
+from realestate.models import Payment
+
+
 
 
 # Credentials
@@ -70,3 +74,101 @@ def lipa_na_mpesa_online(phone_number, amount, surveyor_id):
         )
 
     return res_data
+
+
+def send_stk_push(phone_number, amount, account_reference, payment_id):
+    callback_url = "https://your-ngrok-url.ngrok-free.app/mpesa/buyer/callback/"
+
+    # 1. Get access token
+    auth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+    auth_response = requests.get(auth_url, auth=HTTPBasicAuth(consumer_key, consumer_secret))
+    access_token = auth_response.json().get('access_token')
+
+    # 2. Generate password
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    data_to_encode = shortcode + passkey + timestamp
+    online_password = base64.b64encode(data_to_encode.encode()).decode('utf-8')
+
+    # 3. Prepare headers and payload
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "BusinessShortCode": shortcode,
+        "Password": online_password,
+        "Timestamp": timestamp,
+        "TransactionType": "CustomerPayBillOnline",
+        "Amount": amount,
+        "PartyA": phone_number,
+        "PartyB": shortcode,
+        "PhoneNumber": phone_number,
+        "CallBackURL": callback_url,
+        "AccountReference": account_reference,
+        "TransactionDesc": "Unlock Chat with Seller"
+    }
+
+    # 4. Send STK Push
+    stk_push_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+    response = requests.post(stk_push_url, json=payload, headers=headers)
+
+    res_data = response.json()
+
+    if res_data.get('ResponseCode') == '0':
+        # Optional: store identifiers for future verification
+        payment = Payment.objects.get(id=payment_id)
+        payment.checkout_request_id = res_data['CheckoutRequestID']
+        payment.merchant_request_id = res_data['MerchantRequestID']
+        payment.save()
+
+    return res_data.get('CheckoutRequestID')
+
+
+def send_seller_verification_stk_push(phone_number, amount, account_reference, payment_id):
+    callback_url = "https://your-ngrok-url.ngrok-free.app/mpesa/seller/callback/"
+
+    # 1. Get access token
+    auth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+    auth_response = requests.get(auth_url, auth=HTTPBasicAuth(consumer_key, consumer_secret))
+    access_token = auth_response.json().get('access_token')
+
+    # 2. Generate password
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    data_to_encode = shortcode + passkey + timestamp
+    online_password = base64.b64encode(data_to_encode.encode()).decode('utf-8')
+
+    # 3. Prepare headers and payload
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "BusinessShortCode": shortcode,
+        "Password": online_password,
+        "Timestamp": timestamp,
+        "TransactionType": "CustomerPayBillOnline",
+        "Amount": amount,
+        "PartyA": phone_number,
+        "PartyB": shortcode,
+        "PhoneNumber": phone_number,
+        "CallBackURL": callback_url,
+        "AccountReference": account_reference,
+        "TransactionDesc": "Seller Verification"
+    }
+
+    # 4. Send STK Push
+    stk_push_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+    response = requests.post(stk_push_url, json=payload, headers=headers)
+
+    res_data = response.json()
+
+    if res_data.get('ResponseCode') == '0':
+        # Optional: store identifiers for future verification
+        payment = Payment.objects.get(id=payment_id)
+        payment.checkout_request_id = res_data['CheckoutRequestID']
+        payment.merchant_request_id = res_data['MerchantRequestID']
+        payment.save()
+
+    return res_data.get('CheckoutRequestID')

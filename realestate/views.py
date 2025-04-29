@@ -89,10 +89,147 @@ from .models import Surveyor
 from .forms import SurveyorPromotionForm
 import threading
 import time
+from .forms import PhoneNumberForm
+from django.urls import reverse
+from django.utils import timezone
+from .models import ChatRoom 
+from realestate.models import Payment
+from realestate.mpesa.stk_push import send_stk_push
+from realestate.mpesa.stk_push import send_seller_verification_stk_push
+
+@login_required
+def initiate_seller_verification_payment(request, seller_id):
+    seller = get_object_or_404(Seller, id=seller_id)
+
+    if request.method == 'POST':
+        phone_number = request.POST.get('phone_number')
+
+        payment = Payment.objects.create(
+            seller=request.user,  # Storing seller in buyer field (Option 2)
+            amount=300,
+            phone_number=phone_number,
+            purpose='seller_verification',
+            status='pending',
+            created_at=timezone.now()
+        )
+
+        checkout_id = send_stk_push(
+            phone_number,
+            amount=300,
+            account_reference=f"verification-{seller.id}",
+            payment_id=payment.id
+        )
+
+        if checkout_id:
+            payment.checkout_request_id = checkout_id
+            payment.status = 'success'  # Mark as paid for testing
+            payment.save()
+
+            seller.is_verified = True
+            seller.save()
+
+        # Show waiting page that redirects after 10 seconds
+        return render(request, 'waiting_for_seller_verification_payment.html')
+
+    return render(request, 'enter_phone_number_for_seller_verification.html', {'seller': seller})
+
+ 
+
+@login_required
+def initiate_chat_payment(request, seller_id):
+    seller = get_object_or_404(Seller, id=seller_id)
+
+    # ✅ Check if buyer already paid to chat with this seller
+    existing_payment = Payment.objects.filter(
+        buyer=request.user,
+        seller=seller,
+        purpose='chat_unlock',
+        status='success'
+    ).first()
+
+    if existing_payment:
+        chat_room, _ = ChatRoom.objects.get_or_create(buyer=request.user, seller=seller)
+        return redirect('chat_room', chat_room_id=chat_room.id)
+
+    if request.method == 'POST':
+        phone_number = request.POST.get('phone_number')
+
+        # Create a Payment record
+        payment = Payment.objects.create(
+            buyer=request.user,
+            seller=seller,
+            amount=50,
+            phone_number=phone_number,
+            purpose='chat_unlock',
+            status='pending',
+            created_at=timezone.now()
+        )
+
+        # Send STK push
+        checkout_id = send_stk_push(
+            phone_number,
+            amount=50,
+            account_reference=f"chat-{request.user.id}-{seller.id}",
+            payment_id=payment.id
+        )
+
+        # Save checkout ID
+        if checkout_id:
+            payment.checkout_request_id = checkout_id
+            payment.status = 'success'  # Mark as paid for testing
+            payment.save()
+
+        # ✅ Create or get the chat room
+        chat_room, created = ChatRoom.objects.get_or_create(buyer=request.user, seller=seller)
+
+        # ✅ Pass chat_room_id to the template
+        return render(request, 'waiting_for_payment.html', {
+            'payment': payment,
+            'chat_room_id': chat_room.id
+        })
+
+    return render(request, 'enter_phone_number.html', {'seller': seller})
 
 
 
 
+
+
+@csrf_exempt
+def buyer_mpesa_callback(request):
+    logger.info("Received buyer callback: %s", request.body)
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        print("CALLBACK RECEIVED:", data)
+
+        result_code = data['Body']['stkCallback']['ResultCode']
+        checkout_request_id = data['Body']['stkCallback']['CheckoutRequestID']
+
+        try:
+            # Get the payment using checkout_request_id
+            payment = Payment.objects.get(checkout_request_id=checkout_request_id)
+        except Payment.DoesNotExist:
+            return JsonResponse({"ResultCode": 0, "ResultDesc": "Transaction not found"}, status=404)
+
+        if result_code == 0:
+            # Payment was successful
+            payment.status = 'paid'
+            payment.save()
+
+            # Unlock the chat
+            UnlockedChat.objects.get_or_create(
+                buyer=payment.buyer,
+                seller=payment.seller
+            )
+
+            print(f"Chat unlocked for {payment.buyer.username} and {payment.seller.name}!")
+
+        else:
+            print(f"Payment failed or cancelled for CheckoutRequestID {checkout_request_id}")
+
+        return JsonResponse({"ResultCode": 0, "ResultDesc": "Accepted"})
+
+    return JsonResponse({"message": "Method not allowed"}, status=405)
 
 
 
@@ -356,9 +493,18 @@ def register_seller(request):
     if request.method == "POST":
         form = SellerRegistrationForm(request.POST, request.FILES)
         if form.is_valid():
-            seller = form.save()  # Save the seller
+            user = form.save(commit=False)  # Don't save to DB yet
+            user.is_active = True  # Optional: ensure the user is active
+            user.save()
 
-            # Now create the land listing tied to the seller
+            # Create the seller profile
+            seller = Seller.objects.create(
+                user=user,
+                contact_details=form.cleaned_data.get('contact_details'),  # if applicable
+                # Add other fields if your Seller model requires them
+            )
+
+            # Create the land listing tied to the seller
             land = Land.objects.create(
                 seller=seller,
                 size=form.cleaned_data['land_size'],
@@ -374,6 +520,7 @@ def register_seller(request):
         form = SellerRegistrationForm()
 
     return render(request, "realestate/register_seller.html", {"form": form})
+
 
 def register_surveyor(request):
     if request.method == 'POST':
@@ -545,45 +692,43 @@ pusher_client = pusher.Pusher(
     timeout=15,
 )
 
-def start_chat(request, target_type, target_id):
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'error', 'message': 'Authentication required'}, status=403)
 
+
+@login_required
+def start_chat(request, target_type, target_id):
     try:
-        buyer = Buyer.objects.get(id=request.user.id)
+       buyer = Buyer.objects.get(id=request.user.id)
+
     except Buyer.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Only buyers can start chats.'}, status=403)
 
+    # 🔁 If target is seller: redirect to payment initiation
     if target_type == "seller":
-        target = get_object_or_404(Seller, id=target_id)
-        target_field = 'seller'
+        return redirect('initiate_chat_payment', seller_id=target_id)
+
+    # ✅ For surveyors, proceed as before (no changes)
     elif target_type == "surveyor":
         target = get_object_or_404(Surveyor, id=target_id)
-        target_field = 'surveyor'
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid target type'}, status=400)
+        chat_room, created = ChatRoom.objects.get_or_create(buyer=buyer, surveyor=target)
 
-    chat_room, created = ChatRoom.objects.get_or_create(
-        buyer=buyer,
-        **{target_field: target}
-    )
+        channel = f'chat-{chat_room.id}'
+        payload = {
+            'buyer_id': buyer.id,
+            'message': 'You have a new message from a buyer.',
+        }
 
-    channel = f'chat-{chat_room.id}'
-    payload = {
-        'buyer_id': buyer.id,
-        'message': 'You have a new message from a buyer.',
-    }
+        try:
+            pusher_client.trigger(channel, 'chat-started', payload)
+        except Exception as e:
+            print("⚠️ Pusher trigger failed:", e)
 
-    try:
-        pusher_client.trigger(channel, 'chat-started', payload)
-    except Exception as e:
-        print("⚠️ Pusher trigger failed:", e)
+        return JsonResponse({
+            'status': 'Chat started',
+            'channel': channel,
+            'chat_room_id': chat_room.id,
+        })
 
-    return JsonResponse({
-        'status': 'Chat started',
-        'channel': channel,
-        'chat_room_id': chat_room.id,
-    })
+    return JsonResponse({'status': 'error', 'message': 'Invalid target type'}, status=400)
 
 @csrf_protect
 @require_POST

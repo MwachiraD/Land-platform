@@ -2,7 +2,17 @@
 
 {% block content %}
 <h1>Welcome, {{ seller.email }}</h1>
-
+{% if request.user.is_authenticated %}
+    {% if request.user.is_verified %}
+        <p style="color: green; font-weight: bold;">✅ Verified Seller</p>
+    {% else %}
+        <form method="get" action="{% url 'initiate_seller_verification_payment' request.user.id %}">
+            <button type="submit">Get Verified</button>
+        </form>
+    {% endif %}
+{% else %}
+    <p>Error: Not logged in.</p>
+{% endif %}
 <!-- Ensure CSRF token is correctly rendered in the body, outside <head> -->
 <div id="csrf_token_test" style="display:none;">{{ csrf_token }}</div>
 
@@ -22,15 +32,22 @@
                     <p><strong>Price:</strong> ${{ land.price }}</p>
                     <p>{{ land.description }}</p>
 
-                    {% if land.is_featured %}
-                        <span class="badge">🌟 Featured</span>
-                    {% else %}
-                        <button onclick="featureLand({{ land.id }})" class="btn btn-primary">
-                            Feature This Land (Ksh 200)
-                        </button>
-                    {% endif %}
+                    <!-- Leaflet Map for each land -->
+                    <div id="map-{{ land.id }}" style="height: 200px; margin-top: 10px;"></div>
+                    <script>
+                        var map = L.map('map-{{ land.id }}').setView([{{ land.latitude }}, {{ land.longitude }}], 13);
+
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; OpenStreetMap contributors'
+                        }).addTo(map);
+
+                        L.marker([{{ land.latitude }}, {{ land.longitude }}])
+                            .addTo(map)
+                            .bindPopup('Land Location: {{ land.location }}')
+                            .openPopup();
+                    </script>
                     
-                    <a href="{% url 'edit_listing' land.id %}">Edit</a>
+                    <a href="{% url 'edit_listing' land.id %}">Edit listing</a>
                 </li>
             {% endfor %}
         </ul>
