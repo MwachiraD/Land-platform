@@ -8,19 +8,8 @@
     <link rel="stylesheet" href="{% static 'realestate/style.css' %}">
 
 
-    <link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-sA+zNmt0rUyy2bL/VZbRUvZ78YAwXZ1tt+3Zj+4gk28="
-  crossorigin=""
-/>
+    {% block extra_head %}{% endblock %}
 
-<!-- Leaflet JS -->
-<script
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-D+3a9D5E1YJYZ8hzts+n1U5x8w40O/9duXuBs+5pIgE="
-  crossorigin=""
-></script>
 </head>
 <body>
     <header>
@@ -46,3 +35,13 @@
     </footer>
 </body>
 </html>
+<script src="{% static 'leaflet/leaflet.js' %}"></script>
+<script>
+  // Marker‐icon override
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "{% static 'leaflet/images/marker-icon-2x.png' %}",
+    iconUrl:       "{% static 'leaflet/images/marker-icon.png' %}",
+    shadowUrl:     "{% static 'leaflet/images/marker-shadow.png' %}",
+  });
+</script>

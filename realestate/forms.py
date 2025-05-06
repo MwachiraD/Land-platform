@@ -16,6 +16,7 @@ from django.contrib.auth import get_user_model
 from .models import Surveyor
 from .models import Message, ChatRoom
 from .models import Land
+from django.contrib.auth.hashers import make_password
 
 
 
@@ -30,10 +31,51 @@ class SurveyorPromotionForm(forms.Form):
     surveyor_id = forms.IntegerField()
     phone_number = forms.CharField(max_length=15, required=True)
 
-class SellerForm(forms.ModelForm):
+
+class SellerRegistrationForm(forms.ModelForm):
+    # User credentials
+    username = forms.CharField(max_length=150)
+    email = forms.EmailField()
+    password = forms.CharField(widget=forms.PasswordInput)
+
+    # Initial land fields
+    land_size   = forms.DecimalField(max_digits=10, decimal_places=2)
+    location    = forms.CharField(max_length=255)
+    price       = forms.DecimalField(max_digits=10, decimal_places=2)
+    image       = forms.ImageField(required=False)
+    latitude    = forms.FloatField()
+    longitude   = forms.FloatField()
+
     class Meta:
         model = Seller
-        fields = ['land_size', 'location', 'price', 'image', 'contact_details', 'other_contact_methods']
+        fields = [
+            'username', 'email', 'password',
+            'land_size', 'location', 'price', 'image', 'latitude', 'longitude',
+            'contact_details', 'other_contact_methods'
+        ]
+
+    def save(self, commit=True):
+        # 1) Create the Seller
+        seller = super().save(commit=False)
+        # set the user/pass fields on your Seller
+        seller.username = self.cleaned_data['username']
+        seller.email    = self.cleaned_data['email']
+        seller.password = make_password(self.cleaned_data['password'])
+        if commit:
+            seller.save()
+
+            # 2) Create the initial Land record
+            Land.objects.create(
+                seller    = seller,
+                size      = self.cleaned_data['land_size'],
+                location  = self.cleaned_data['location'],
+                price     = self.cleaned_data['price'],
+                image     = self.cleaned_data.get('image'),
+                latitude  = self.cleaned_data['latitude'],
+                longitude = self.cleaned_data['longitude'],
+            )
+        return seller
+
 
 class BuyerForm(UserCreationForm):
     class Meta:
@@ -42,29 +84,6 @@ class BuyerForm(UserCreationForm):
 
 
 
-class SellerRegistrationForm(forms.ModelForm):
-    username = forms.CharField(max_length=150)
-    email = forms.EmailField()
-    password = forms.CharField(widget=forms.PasswordInput)
-    
-    class Meta:
-        model = Seller
-        fields = ['land_size', 'location', 'price', 'image', 'contact_details', 'other_contact_methods']
-
-    def save(self, commit=True):
-        # Create the seller instance directly without a User
-        seller = super().save(commit=False)
-        seller.username = self.cleaned_data['username']
-        seller.email = self.cleaned_data['email']
-        
-        # Use set_password to handle password hashing
-        seller.set_password(self.cleaned_data['password'])
-
-        # Save the seller to the database if commit is True
-        if commit:
-            seller.save()
-        
-        return seller
 
 class SurveyorForm(forms.ModelForm):
     class Meta:
@@ -76,7 +95,7 @@ class SurveyorForm(forms.ModelForm):
 class LandForm(forms.ModelForm):
     class Meta:
         model = Land
-        fields = ['size', 'location', 'price', 'image']
+        fields = ['size', 'location', 'price', 'image', 'latitude', 'longitude']
 
 
 class EditListingForm(forms.ModelForm):
@@ -94,12 +113,14 @@ class SellerContactForm(forms.ModelForm):
 class LandForm(forms.ModelForm):
     class Meta:
         model = Land
-        fields = ['size', 'location', 'price', 'image']  # Add all fields you want in the form
+        fields = ['size', 'location', 'price', 'image', 'latitude', 'longitude']  # ✅ Add these two
         widgets = {
             'size': forms.TextInput(attrs={'placeholder': 'Enter land size in acres'}),
             'location': forms.TextInput(attrs={'placeholder': 'Enter location'}),
             'price': forms.NumberInput(attrs={'placeholder': 'Enter price'}),
-        }   
+            'latitude': forms.NumberInput(attrs={'placeholder': 'Enter latitude (e.g. -1.2921)'}),
+            'longitude': forms.NumberInput(attrs={'placeholder': 'Enter longitude (e.g. 36.8219)'}),
+        }
 
 
         

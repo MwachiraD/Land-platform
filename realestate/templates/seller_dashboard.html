@@ -1,4 +1,8 @@
 {% extends 'base_generic.html' %}
+{% load static %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'leaflet/leaflet.css' %}" />
+{% endblock %}
 
 {% block content %}
 <h1>Welcome, {{ seller.email }}</h1>
@@ -13,8 +17,6 @@
 {% else %}
     <p>Error: Not logged in.</p>
 {% endif %}
-<!-- Ensure CSRF token is correctly rendered in the body, outside <head> -->
-<div id="csrf_token_test" style="display:none;">{{ csrf_token }}</div>
 
 <!-- Land Listings Section -->
 <section>
@@ -32,21 +34,11 @@
                     <p><strong>Price:</strong> ${{ land.price }}</p>
                     <p>{{ land.description }}</p>
 
-                    <!-- Leaflet Map for each land -->
-                    <div id="map-{{ land.id }}" style="height: 200px; margin-top: 10px;"></div>
-                    <script>
-                        var map = L.map('map-{{ land.id }}').setView([{{ land.latitude }}, {{ land.longitude }}], 13);
+                    {% if land.latitude and land.longitude %}
+                        <div id="map-{{ land.id }}"
+                             style="height:300px; margin-top:10px; border:1px solid #ccc;"></div>
+                    {% endif %}
 
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '&copy; OpenStreetMap contributors'
-                        }).addTo(map);
-
-                        L.marker([{{ land.latitude }}, {{ land.longitude }}])
-                            .addTo(map)
-                            .bindPopup('Land Location: {{ land.location }}')
-                            .openPopup();
-                    </script>
-                    
                     <a href="{% url 'edit_listing' land.id %}">Edit listing</a>
                 </li>
             {% endfor %}
@@ -56,7 +48,7 @@
     {% endif %}
 </section>
 
-<!-- Contact Info Section -->
+<!-- Contact Info -->
 <section>
     <h2>Contact Info</h2>
     <p><strong>Contact:</strong> {{ seller.contact_details }}</p>
@@ -64,11 +56,10 @@
     <a href="{% url 'edit_contact_details' %}">Edit Contact</a>
 </section>
 
-<!-- Messages Section -->
+<!-- Messages -->
 <section>
     <h2>Messages from Buyers</h2>
     <div id="messages-container"></div>
-
     <h3>Reply</h3>
     <form id="reply-form">
         {% csrf_token %}
@@ -77,7 +68,7 @@
     </form>
 </section>
 
-<!-- Chat Rooms Section -->
+<!-- Chat Rooms -->
 <h3>Chat Rooms</h3>
 {% if chat_rooms %}
     <ul>
@@ -92,121 +83,141 @@
 {% else %}
     <p>No chat rooms.</p>
 {% endif %}
+    <!-- Leaflet JS -->
+<script src="{% static 'leaflet/leaflet.js' %}"></script>
 
-<!-- Pusher and JavaScript -->
-<script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+<!-- Tell Leaflet where its images really live -->
 <script>
-    // Fetch CSRF token from the div where it's rendered in the HTML
-    const csrfToken = document.getElementById('csrf_token_test').textContent.trim();
-    console.log('CSRF Token:', csrfToken);  // Log it to see if it has a valid value
-
-    // Ensure CSRF token is available
-    if (!csrfToken) {
-        console.error('CSRF token is not available!');
-    }
-
-    // Pusher setup
-    const pusher = new Pusher('63dc972fe2ce11dcb834', { cluster: 'mt1' });
-    console.log('Pusher initialized');
-
-    {% for room in chat_rooms %}
-        const channel{{ room.id }} = pusher.subscribe('chatroom-{{ room.id }}');
-        console.log('Subscribed to channel: chatroom-{{ room.id }}');
-        channel{{ room.id }}.bind('new-message', function(data) {
-            console.log('New message:', data);
-            const msgDiv = document.createElement('div');
-            msgDiv.textContent = `${data.sender}: ${data.message}`;
-            document.getElementById('messages-container').appendChild(msgDiv);
-        });
-    {% endfor %}
-
-    // Send reply
-    document.getElementById('reply-form').addEventListener('submit', async e => {
-        e.preventDefault();
-        const text = document.getElementById('message-text').value.trim();
-        if (!text) return;
-
-        try {
-            const response = await fetch('/send-message/1/', {  // Replace '1' with dynamic chat_room_id
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken  // Use dynamic CSRF token
-                },
-                body: JSON.stringify({ message: text })
-            });
-            const data = await response.json();
-            if (response.ok && data.status === 'Message sent successfully') {
-                document.getElementById('message-text').value = '';
-            } else {
-                console.error('Error:', data.error);
-            }
-        } catch (error) {
-            console.error('Fetch error:', error);
-        }
-    });
-
-    // Feature Land function
-    function featureLand(landId) {
-        fetch(`/feature-land/${landId}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,  // Use dynamic CSRF token
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({})
-        })
-        .then(response => {
-            console.log('Response Status:', response.status);  // Log status
-            if (!response.ok) {
-                return response.text().then(text => {
-                    console.error('Response Body:', text);  // Log the response body if not OK
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();  // reload page to show "🌟 Featured"
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Network error occurred.');
-        });
-    }
+  // Remove built‐in logic
+  delete L.Icon.Default.prototype._getIconUrl;
+  // Override with your static paths
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "{% static 'leaflet/images/marker-icon-2x.png' %}",
+    iconUrl:       "{% static 'leaflet/images/marker-icon.png' %}",
+    shadowUrl:     "{% static 'leaflet/images/marker-shadow.png' %}",
+  });
 </script>
 
-<style>
-    .btn {
-        display: inline-block;
-        padding: 10px 20px;
-        background-color: #007bff;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        margin-bottom: 10px;
-    }
-    .btn:hover {
-        background-color: #0056b3;
-    }
-    #messages-container {
-        max-height: 300px;
-        overflow-y: auto;
-        border: 1px solid #ccc;
-        padding: 10px;
-        margin-bottom: 10px;
-    }
-    #message-text {
-        width: 100%;
-        height: 60px;
-        margin-bottom: 10px;
-    }
-</style>
+<!-- Now your maps … -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    {% for land in seller.lands.all %}
+      {% if land.latitude and land.longitude %}
+        (function() {
+          const el = document.getElementById('map-{{ land.id }}');
+          if (!el) return;
+          const map = L.map(el).setView([{{ land.latitude }}, {{ land.longitude }}], 15);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(map);
+          L.marker([{{ land.latitude }}, {{ land.longitude }}]).addTo(map)
+            .bindPopup("{{ land.location }}");
+        })();
+      {% endif %}
+    {% endfor %}
+  });
+</script>
+
 
 {% endblock %}
+
+
+<!-- Custom Styles -->
+<style>
+  .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    margin-bottom: 10px;
+  }
+  .btn:hover {
+    background-color: #0056b3;
+  }
+  #messages-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  #message-text {
+    width: 100%;
+    height: 60px;
+    margin-bottom: 10px;
+  }
+</style>
+
+
+
+<!-- Pusher and Chat Script -->
+<script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+<script>
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+  if (!csrfToken) console.error('CSRF token is not available!');
+
+  const pusher = new Pusher('63dc972fe2ce11dcb834', { cluster: 'mt1' });
+  {% for room in chat_rooms %}
+    const channel{{ room.id }} = pusher.subscribe('chatroom-{{ room.id }}');
+    channel{{ room.id }}.bind('new-message', function(data) {
+      const msgDiv = document.createElement('div');
+      msgDiv.textContent = `${data.sender}: ${data.message}`;
+      document.getElementById('messages-container').appendChild(msgDiv);
+    });
+  {% endfor %}
+
+  document.getElementById('reply-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = document.getElementById('message-text').value.trim();
+    if (!text) return;
+
+    const response = await fetch('/send-message/1/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ message: text })
+    });
+    const data = await response.json();
+    if (response.ok && data.status === 'Message sent successfully') {
+      document.getElementById('message-text').value = '';
+    } else {
+      console.error('Error:', data.error);
+    }
+  });
+
+  function featureLand(landId) {
+    fetch(`/feature-land/${landId}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({})
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.text().then(text => {
+          throw new Error(`HTTP error! Status: ${response.status} - ${text}`);
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        alert(data.message);
+        location.reload();
+      } else {
+        alert('Error: ' + data.message);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Network error occurred.');
+    });
+  }
+</script>

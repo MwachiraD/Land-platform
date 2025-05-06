@@ -8,7 +8,16 @@
     <h1>Add a New Land Listing</h1>
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        {{ form.as_p }}
+        
+        <p>{{ form.size.label_tag }} {{ form.size }}</p>
+        <p>{{ form.location.label_tag }} {{ form.location }}</p>
+        <p>{{ form.price.label_tag }} {{ form.price }}</p>
+        <p>{{ form.image.label_tag }} {{ form.image }}</p>
+        
+        <p><strong>📍 Location Coordinates (optional, for map display):</strong></p>
+        <p>{{ form.latitude.label_tag }} {{ form.latitude }}</p>
+        <p>{{ form.longitude.label_tag }} {{ form.longitude }}</p>
+        
         <button type="submit">Add Listing</button>
     </form>
 </body>

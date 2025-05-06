@@ -489,30 +489,12 @@ def register_buyer(request):
     else:
         form = BuyerForm()
     return render(request, 'realestate/register_buyer.html', {'form': form})
+
 def register_seller(request):
     if request.method == "POST":
         form = SellerRegistrationForm(request.POST, request.FILES)
         if form.is_valid():
-            user = form.save(commit=False)  # Don't save to DB yet
-            user.is_active = True  # Optional: ensure the user is active
-            user.save()
-
-            # Create the seller profile
-            seller = Seller.objects.create(
-                user=user,
-                contact_details=form.cleaned_data.get('contact_details'),  # if applicable
-                # Add other fields if your Seller model requires them
-            )
-
-            # Create the land listing tied to the seller
-            land = Land.objects.create(
-                seller=seller,
-                size=form.cleaned_data['land_size'],
-                location=form.cleaned_data['location'],
-                price=form.cleaned_data['price'],
-                image=form.cleaned_data.get('image')
-            )
-            print("✅ Land created:", land)
+            seller = form.save(commit=True)  # Seller instance is saved here
 
             messages.success(request, "Registration successful. Please log in.")
             return redirect("seller_login")
@@ -543,12 +525,16 @@ def register_surveyor(request):
     return render(request, 'realestate/register_surveyor.html', {'form': form})
 
 from django.shortcuts import render
+
+
+
+from .models import Land  # or wherever your Land model is
+
 @login_required
 def buyer_dashboard(request):
-    sellers = Seller.objects.all()
-    surveyors = Surveyor.objects.all().order_by('-is_promoted', 'id')  # ✅ Promoted first
-    return render(request, 'buyer_dashboard.html', {'sellers': sellers, 'surveyors': surveyors})
-
+    lands = Land.objects.select_related('seller').all()
+    surveyors = Surveyor.objects.all().order_by('-is_promoted', 'id')
+    return render(request, 'buyer_dashboard.html', {'lands': lands, 'surveyors': surveyors})
 
 
 def add_land(request):
