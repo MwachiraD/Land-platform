@@ -18,7 +18,7 @@ passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
 
 # Function to send STK Push
 def lipa_na_mpesa_online(phone_number, amount, surveyor_id):
-    callback_url = "https://bce8-105-230-156-204.ngrok-free.app/mpesa/callback/"  # ✅ your ngrok URL
+    callback_url = "https://e93e-2c0f-fe38-202e-bf40-e1e6-13ef-253b-697b.ngrok-free.app/realestate/mpesa/seller/callback/"# ✅ your ngrok URL
 
     # 1. Fetch the Surveyor object first
     try:
@@ -77,7 +77,7 @@ def lipa_na_mpesa_online(phone_number, amount, surveyor_id):
 
 
 def send_stk_push(phone_number, amount, account_reference, payment_id):
-    callback_url = "https://your-ngrok-url.ngrok-free.app/mpesa/buyer/callback/"
+    callback_url = "https://e93e-2c0f-fe38-202e-bf40-e1e6-13ef-253b-697b.ngrok-free.app/realestate/mpesa/seller/callback/"
 
     # 1. Get access token
     auth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
@@ -126,7 +126,9 @@ def send_stk_push(phone_number, amount, account_reference, payment_id):
 
 
 def send_seller_verification_stk_push(phone_number, amount, account_reference, payment_id):
-    callback_url = "https://your-ngrok-url.ngrok-free.app/mpesa/seller/callback/"
+    if phone_number.startswith("0"):
+        phone_number = "254" + phone_number[1:]  # Convert to international format
+    callback_url = "https://e93e-2c0f-fe38-202e-bf40-e1e6-13ef-253b-697b.ngrok-free.app/realestate/mpesa/seller/callback/"
 
     # 1. Get access token
     auth_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
@@ -163,6 +165,7 @@ def send_seller_verification_stk_push(phone_number, amount, account_reference, p
     response = requests.post(stk_push_url, json=payload, headers=headers)
 
     res_data = response.json()
+    print("MPESA STK RESPONSE:", res_data)
 
     if res_data.get('ResponseCode') == '0':
         # Optional: store identifiers for future verification

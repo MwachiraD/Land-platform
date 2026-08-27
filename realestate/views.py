@@ -106,27 +106,24 @@ def initiate_seller_verification_payment(request, seller_id):
 
         payment = Payment.objects.create(
             seller=request.user,  # Storing seller in buyer field (Option 2)
-            amount=300,
+            amount=1,
             phone_number=phone_number,
             purpose='seller_verification',
             status='pending',
             created_at=timezone.now()
         )
 
-        checkout_id = send_stk_push(
+        checkout_id = send_seller_verification_stk_push(
             phone_number,
-            amount=300,
+            amount=1,
             account_reference=f"verification-{seller.id}",
             payment_id=payment.id
         )
 
         if checkout_id:
             payment.checkout_request_id = checkout_id
-            payment.status = 'success'  # Mark as paid for testing
             payment.save()
 
-            seller.is_verified = True
-            seller.save()
 
         # Show waiting page that redirects after 10 seconds
         return render(request, 'waiting_for_seller_verification_payment.html')
@@ -231,7 +228,51 @@ def buyer_mpesa_callback(request):
 
     return JsonResponse({"message": "Method not allowed"}, status=405)
 
+@csrf_exempt
+def seller_mpesa_callback(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        print("SELLER CALLBACK RECEIVED:", data)
 
+        result_code = data['Body']['stkCallback']['ResultCode']
+        checkout_request_id = data['Body']['stkCallback']['CheckoutRequestID']
+
+        try:
+            payment = Payment.objects.get(
+                checkout_request_id=checkout_request_id,
+                purpose='seller_verification'
+            )
+        except Payment.DoesNotExist:
+            return JsonResponse({
+                "ResultCode": 0,
+                "ResultDesc": "Transaction not found"
+            }, status=404)
+
+        if result_code == 0:
+            payment.status = 'paid'
+            payment.save()
+
+            seller = payment.seller
+            seller.is_verified = True
+            seller.save()
+
+            print(f"Seller {seller.id} verified successfully after payment!")
+
+        else:
+            payment.status = 'failed'
+            payment.save()
+
+            print(
+                f"Seller verification payment failed or cancelled "
+                f"for CheckoutRequestID {checkout_request_id}"
+            )
+
+        return JsonResponse({
+            "ResultCode": 0,
+            "ResultDesc": "Accepted"
+        })
+
+    return JsonResponse({"message": "Method not allowed"}, status=405)
 
 
 

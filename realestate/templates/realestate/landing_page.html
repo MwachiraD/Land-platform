@@ -82,7 +82,14 @@
             <ul>
                 <li><a href="#">Home</a></li>
                 <li><a href="#">About Us</a></li>
-                <li><a href="register.html">Register</a></li>
+                <li>
+    <a href="#" id="register-button">Register</a>
+    <div id="register-popup" class="login-popup">
+        <a href="{% url 'register_buyer' %}">Register as Buyer</a>
+        <a href="{% url 'register_seller' %}">Register as Seller</a>
+        <a href="{% url 'register_surveyor' %}">Register as Surveyor</a>
+    </div>
+</li>
                 <li>
                     <a href="#" id="login-button">Log In</a>
                     <!-- Pop-up menu -->
@@ -128,28 +135,47 @@
     </footer>
 
     <script>
-        // JavaScript to toggle the login pop-up menu
-        document.addEventListener('DOMContentLoaded', function() {
-            const loginButton = document.getElementById('login-button');
-            const loginPopup = document.getElementById('login-popup');
+    document.addEventListener('DOMContentLoaded', function() {
+        const loginButton = document.getElementById('login-button');
+        const loginPopup = document.getElementById('login-popup');
 
-            loginButton.addEventListener('click', function(event) {
-                event.preventDefault();
-                // Toggle visibility of the pop-up menu
-                if (loginPopup.style.display === 'block') {
-                    loginPopup.style.display = 'none';
-                } else {
-                    loginPopup.style.display = 'block';
-                }
-            });
+        const registerButton = document.getElementById('register-button');
+        const registerPopup = document.getElementById('register-popup');
 
-            // Hide the pop-up menu when clicking outside
-            document.addEventListener('click', function(event) {
-                if (!loginButton.contains(event.target) && !loginPopup.contains(event.target)) {
-                    loginPopup.style.display = 'none';
-                }
-            });
+        loginButton.addEventListener('click', function(event) {
+            event.preventDefault();
+
+            if (loginPopup.style.display === 'block') {
+                loginPopup.style.display = 'none';
+            } else {
+                loginPopup.style.display = 'block';
+                registerPopup.style.display = 'none';
+            }
         });
-    </script>
+
+        registerButton.addEventListener('click', function(event) {
+            event.preventDefault();
+
+            if (registerPopup.style.display === 'block') {
+                registerPopup.style.display = 'none';
+            } else {
+                registerPopup.style.display = 'block';
+                loginPopup.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', function(event) {
+            if (!loginButton.contains(event.target) &&
+                !loginPopup.contains(event.target)) {
+                loginPopup.style.display = 'none';
+            }
+
+            if (!registerButton.contains(event.target) &&
+                !registerPopup.contains(event.target)) {
+                registerPopup.style.display = 'none';
+            }
+        });
+    });
+</script>
 </body>
 </html>
